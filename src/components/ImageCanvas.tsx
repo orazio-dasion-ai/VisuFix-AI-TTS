@@ -263,32 +263,32 @@ export default function ImageCanvas({ photo, imageUrl, onTextElementsChange, onC
   return (
     <div className="flex gap-6">
       {/* Toolbar */}
-      <div className="w-64 bg-white rounded-lg shadow-md p-4 h-fit">
-        <h3 className="text-lg font-semibold mb-4">Tools</h3>
+      <div className="w-64 bg-slate-900/60 backdrop-blur-md rounded-xl shadow-2xl border border-purple-500/20 p-4 h-fit">
+        <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Tools</h3>
         
         {/* Tool Selection */}
         <div className="space-y-2 mb-6">
           <button
             onClick={addText}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded hover:from-purple-700 hover:to-purple-800 transition-all duration-300 shadow-lg shadow-purple-500/25"
           >
             Add Text
           </button>
           <button
             onClick={addRectangle}
-            className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+            className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 shadow-lg shadow-indigo-500/25"
           >
             Add Rectangle
           </button>
           <button
             onClick={addCircle}
-            className="w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+            className="w-full px-4 py-2 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded hover:from-violet-700 hover:to-violet-800 transition-all duration-300 shadow-lg shadow-violet-500/25"
           >
             Add Circle
           </button>
           <button
             onClick={deleteSelected}
-            className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            className="w-full px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg shadow-red-500/25"
           >
             Delete Selected
           </button>
@@ -296,26 +296,26 @@ export default function ImageCanvas({ photo, imageUrl, onTextElementsChange, onC
 
         {/* Text Controls */}
         <div className="space-y-4 mb-6">
-          <h4 className="font-medium">Text Style <span className="text-xs text-green-600">●live</span></h4>
+          <h4 className="font-medium text-slate-200">Text Style <span className="text-xs text-emerald-400">●live</span></h4>
           <div>
-            <label className="block text-sm font-medium mb-1">Font Size</label>
+            <label className="block text-sm font-medium mb-1 text-slate-300">Font Size</label>
             <input
               type="range"
               min="12"
               max="72"
               value={textSize}
               onChange={(e) => setTextSize(Number(e.target.value))}
-              className="w-full"
+              className="w-full accent-purple-500"
             />
-            <span className="text-sm text-gray-600">{textSize}px</span>
+            <span className="text-sm text-slate-400">{textSize}px</span>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Text Color</label>
+            <label className="block text-sm font-medium mb-1 text-slate-300">Text Color</label>
             <input
               type="color"
               value={textColor}
               onChange={(e) => setTextColor(e.target.value)}
-              className="w-full h-8 rounded border"
+              className="w-full h-8 rounded border border-purple-500/30 bg-slate-800/80"
             />
           </div>
           
@@ -323,27 +323,27 @@ export default function ImageCanvas({ photo, imageUrl, onTextElementsChange, onC
 
         {/* Shape Controls */}
         <div className="space-y-4">
-          <h4 className="font-medium">Shape Style <span className="text-xs text-green-600">●live</span></h4>
+          <h4 className="font-medium text-slate-200">Shape Style <span className="text-xs text-emerald-400">●live</span></h4>
           <div>
-            <label className="block text-sm font-medium mb-1">Fill Color</label>
+            <label className="block text-sm font-medium mb-1 text-slate-300">Fill Color</label>
             <input
               type="color"
               value={fillColor}
               onChange={(e) => setFillColor(e.target.value)}
-              className="w-full h-8 rounded border"
+              className="w-full h-8 rounded border border-purple-500/30 bg-slate-800/80"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Border Color</label>
+            <label className="block text-sm font-medium mb-1 text-slate-300">Border Color</label>
             <input
               type="color"
               value={borderColor}
               onChange={(e) => setBorderColor(e.target.value)}
-              className="w-full h-8 rounded border"
+              className="w-full h-8 rounded border border-purple-500/30 bg-slate-800/80"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Opacity</label>
+            <label className="block text-sm font-medium mb-1 text-slate-300">Opacity</label>
             <input
               type="range"
               min="0"
@@ -351,9 +351,9 @@ export default function ImageCanvas({ photo, imageUrl, onTextElementsChange, onC
               step="0.1"
               value={opacity}
               onChange={(e) => setOpacity(Number(e.target.value))}
-              className="w-full"
+              className="w-full accent-purple-500"
             />
-            <span className="text-sm text-gray-600">{Math.round(opacity * 100)}%</span>
+            <span className="text-sm text-slate-400">{Math.round(opacity * 100)}%</span>
           </div>
           
         </div>
@@ -361,11 +361,11 @@ export default function ImageCanvas({ photo, imageUrl, onTextElementsChange, onC
 
       {/* Canvas */}
       <div className="flex-1">
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <canvas ref={canvasRef} className="border border-gray-300 rounded" />
+        <div className="bg-slate-900/60 backdrop-blur-md rounded-xl shadow-2xl border border-purple-500/20 p-4">
+          <canvas ref={canvasRef} className="border border-purple-500/30 rounded shadow-lg" />
           {photo && (
-            <p className="text-sm text-gray-600 mt-2">
-              Photo by <a href={photo.photographer_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{photo.photographer}</a> on Pexels
+            <p className="text-sm text-slate-300 mt-2">
+              Photo by <a href={photo.photographer_url} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-pink-400 hover:underline transition-colors">{photo.photographer}</a> on Pexels
             </p>
           )}
         </div>
