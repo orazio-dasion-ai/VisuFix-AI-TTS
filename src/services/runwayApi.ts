@@ -1,9 +1,9 @@
 import type { 
   AIVideoGenerationRequest, 
   AIVideoGenerationResponse, 
-  VideoStatusResponse,
-  AIVideoError 
+  VideoStatusResponse
 } from '../types/aiVideo';
+import { AIVideoError } from '../types/aiVideo';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://your-domain.com/api' 
