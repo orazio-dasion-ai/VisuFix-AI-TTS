@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import ImageCanvas from './components/ImageCanvas';
+import AIVideoGenerator from './components/AIVideoGenerator';
 import { searchImages, getOptimalImageUrl, PexelsApiError } from './services/pexelsApi';
 import { ttsService } from './services/ttsService';
 import { videoRecordingService } from './services/videoRecordingService';
 import type { PexelsPhoto } from './types/pexels';
 
+type AppTab = 'canvas' | 'ai-video';
+
 function App() {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<AppTab>('canvas');
+  
+  // Canvas tab state
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +86,7 @@ function App() {
           onEnd: () => {
             console.log(`Finished reading text ${i + 1}`);
           },
-          onError: (error) => {
+          onError: (error: Error) => {
             console.error('TTS Error:', error);
             setError('Error during text-to-speech playback.');
           }
@@ -145,7 +152,7 @@ function App() {
         onStart: () => {
           console.log('Recording started, beginning TTS playback...');
         },
-        onStop: (blob) => {
+        onStop: (blob: Blob) => {
           setRecordingStatus('processing');
           console.log('Recording completed, preparing download...');
           
@@ -158,7 +165,7 @@ function App() {
           
           setRecordingStatus('idle');
         },
-        onError: (error) => {
+        onError: (error: Error) => {
           setError(`Recording failed: ${error.message}`);
           setRecordingStatus('idle');
         }
@@ -189,11 +196,39 @@ function App() {
       <header className="bg-slate-900/80 backdrop-blur-md shadow-2xl border-b border-purple-500/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-                  <div>
+            <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">VisuFix AI TTS</h1>
-              <p className="text-sm text-slate-300">Create images, add text & shapes, then generate voiceovers</p>
+              <p className="text-sm text-slate-300">Create images, add text & generate voiceovers or cinematic AI videos</p>
             </div>
-            <div className="flex gap-3">
+            
+            {/* Tab Navigation */}
+            <div className="flex items-center gap-6">
+              <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg">
+                <button
+                  onClick={() => setActiveTab('canvas')}
+                  className={`py-2 px-4 rounded-md font-medium transition-all duration-300 ${
+                    activeTab === 'canvas'
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                  }`}
+                >
+                  🎨 Canvas Editor
+                </button>
+                <button
+                  onClick={() => setActiveTab('ai-video')}
+                  className={`py-2 px-4 rounded-md font-medium transition-all duration-300 ${
+                    activeTab === 'ai-video'
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                  }`}
+                >
+                  🎬 AI Video
+                </button>
+              </div>
+              
+              {/* Canvas-specific buttons */}
+              {activeTab === 'canvas' && (
+                <div className="flex gap-3">
               <button
                 onClick={handlePlayTTS}
                 disabled={textElements.length === 0 || loading}
@@ -223,6 +258,8 @@ function App() {
                   : '📥 Download MP4'
                 }
               </button>
+                </div>
+              )}
             </div>
           </div>
       </div>
@@ -230,8 +267,11 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search Section */}
-        <div className="bg-slate-900/60 backdrop-blur-md rounded-xl shadow-2xl border border-purple-500/20 p-6 mb-8">
+        {/* Canvas Tab Content */}
+        {activeTab === 'canvas' && (
+          <>
+            {/* Search Section */}
+            <div className="bg-slate-900/60 backdrop-blur-md rounded-xl shadow-2xl border border-purple-500/20 p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">🔍 Search for an Image</h2>
           <div className="flex gap-4">
                           <input
@@ -389,6 +429,13 @@ function App() {
             <h3 className="text-xl font-semibold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">No image selected</h3>
             <p className="text-slate-300">Search for an image above to get started with your creation!</p>
           </div>
+        )}
+          </>
+        )}
+
+        {/* AI Video Tab Content */}
+        {activeTab === 'ai-video' && (
+          <AIVideoGenerator />
         )}
       </main>
 

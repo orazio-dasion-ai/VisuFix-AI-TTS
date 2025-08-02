@@ -1,103 +1,88 @@
-export class TTSService {
-  private synth: SpeechSynthesis | null = null;
-  private isSupported: boolean = false;
+interface TTSOptions {
+  rate?: number;
+  pitch?: number;
+  volume?: number;
+  onStart?: () => void;
+  onEnd?: () => void;
+  onError?: (error: Error) => void;
+}
+
+class TTSService {
+  private synthesis: SpeechSynthesis | null = null;
+  private currentUtterance: SpeechSynthesisUtterance | null = null;
 
   constructor() {
-    this.synth = window.speechSynthesis || null;
-    this.isSupported = !!this.synth && 'speak' in this.synth;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      this.synthesis = window.speechSynthesis;
+    }
   }
 
   isWebSpeechSupported(): boolean {
-    return this.isSupported;
+    return this.synthesis !== null;
   }
 
-  getAvailableVoices(): SpeechSynthesisVoice[] {
-    if (!this.isSupported || !this.synth) return [];
-    return this.synth.getVoices();
-  }
+  async speak(text: string, options: TTSOptions = {}): Promise<void> {
+    if (!this.synthesis) {
+      throw new Error('Speech synthesis not supported');
+    }
 
-  speak(text: string, options: {
-    rate?: number;
-    pitch?: number;
-    volume?: number;
-    voice?: SpeechSynthesisVoice;
-    onStart?: () => void;
-    onEnd?: () => void;
-    onError?: (error: SpeechSynthesisErrorEvent) => void;
-  } = {}): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (!this.isSupported || !this.synth) {
-        reject(new Error('Text-to-speech is not supported in this browser'));
-        return;
-      }
-
-      if (!text.trim()) {
-        reject(new Error('No text provided for speech synthesis'));
-        return;
-      }
-
-      // Stop any ongoing speech
-      this.stop();
-
       const utterance = new SpeechSynthesisUtterance(text);
-      
-      // Set options
-      utterance.rate = options.rate ?? 1;
-      utterance.pitch = options.pitch ?? 1;
-      utterance.volume = options.volume ?? 1;
-      
-      if (options.voice) {
-        utterance.voice = options.voice;
-      }
+      this.currentUtterance = utterance;
 
-      // Event handlers
+      // Set options
+      utterance.rate = options.rate || 1;
+      utterance.pitch = options.pitch || 1;
+      utterance.volume = options.volume || 1;
+
+      // Set event handlers
       utterance.onstart = () => {
         options.onStart?.();
       };
 
       utterance.onend = () => {
         options.onEnd?.();
+        this.currentUtterance = null;
         resolve();
       };
 
       utterance.onerror = (event) => {
-        options.onError?.(event);
-        reject(new Error(`Speech synthesis error: ${event.error}`));
+        const error = new Error(`Speech synthesis error: ${event.error}`);
+        options.onError?.(error);
+        this.currentUtterance = null;
+        reject(error);
       };
 
-      // Speak the text
-      this.synth.speak(utterance);
+      this.synthesis.speak(utterance);
     });
   }
 
   stop(): void {
-    if (this.isSupported && this.synth) {
-      this.synth.cancel();
+    if (this.synthesis) {
+      this.synthesis.cancel();
+      this.currentUtterance = null;
     }
   }
 
   pause(): void {
-    if (this.isSupported && this.synth) {
-      this.synth.pause();
+    if (this.synthesis) {
+      this.synthesis.pause();
     }
   }
 
   resume(): void {
-    if (this.isSupported && this.synth) {
-      this.synth.resume();
+    if (this.synthesis) {
+      this.synthesis.resume();
     }
   }
 
-  isSpeaking(): boolean {
-    if (!this.isSupported || !this.synth) return false;
-    return this.synth.speaking;
+  get isPlaying(): boolean {
+    return this.synthesis?.speaking || false;
   }
 
-  isPaused(): boolean {
-    if (!this.isSupported || !this.synth) return false;
-    return this.synth.paused;
+  get isPaused(): boolean {
+    return this.synthesis?.paused || false;
   }
 }
 
-// Singleton instance
-export const ttsService = new TTSService(); 
+export const ttsService = new TTSService();

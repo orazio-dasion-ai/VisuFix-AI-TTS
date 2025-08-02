@@ -1,223 +1,157 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import type { PexelsPhoto } from '../types/pexels';
 
 interface ImageCanvasProps {
-  photo: PexelsPhoto | null;
-  imageUrl: string | null;
-  onTextElementsChange?: (textElements: string[]) => void;
-  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
+  photo: PexelsPhoto;
+  imageUrl: string;
+  onTextElementsChange: (textElements: string[]) => void;
+  onCanvasReady: (canvas: HTMLCanvasElement) => void;
 }
 
-export default function ImageCanvas({ photo, imageUrl, onTextElementsChange, onCanvasReady }: ImageCanvasProps) {
+export default function ImageCanvas({ 
+  photo, 
+  imageUrl, 
+  onTextElementsChange, 
+  onCanvasReady 
+}: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
-  // Note: selectedTool state is planned for future tool selection UI
-  // const [selectedTool, setSelectedTool] = useState<'text' | 'rectangle' | 'circle' | 'select'>('select');
-  const [textSize, setTextSize] = useState(24);
-  const [textColor, setTextColor] = useState('#000000');
-  const [fillColor, setFillColor] = useState('#ff0000');
-  const [borderColor, setBorderColor] = useState('#000000');
-  const [opacity, setOpacity] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Function to extract all text elements from canvas
-  const extractTextElements = (): string[] => {
-    if (!fabricCanvasRef.current) return [];
-    
-    const textElements: string[] = [];
-    const objects = fabricCanvasRef.current.getObjects();
-    
-    // Filter for text objects and extract their text content
-    objects.forEach((obj) => {
-      if (obj.type === 'i-text' || obj.type === 'text') {
-        const textObj = obj as fabric.IText;
-        const text = textObj.text?.trim();
-        if (text && text !== 'Double click to edit') {
-          textElements.push(text);
-        }
-      }
-    });
-    
-    return textElements;
-  };
-
-  // Notify parent component when text elements change
-  const updateTextElements = () => {
-    if (onTextElementsChange) {
-      const textElements = extractTextElements();
-      onTextElementsChange(textElements);
-    }
-  };
-
-  // Initialize Fabric.js canvas
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !imageUrl) return;
 
-    const canvas = new fabric.Canvas(canvasRef.current, {
-      width: 800,
-      height: 600,
-      backgroundColor: '#f3f4f6',
-    });
+    setIsLoading(true);
+    setError(null);
 
-    fabricCanvasRef.current = canvas;
+    try {
+      // Initialize Fabric.js canvas
+      const fabricCanvas = new fabric.Canvas(canvasRef.current, {
+        width: 800,
+        height: 600,
+        backgroundColor: '#1e293b'
+      });
 
-    // Notify parent that canvas is ready
-    if (onCanvasReady && canvasRef.current) {
-      onCanvasReady(canvasRef.current);
+      fabricCanvasRef.current = fabricCanvas;
+
+      // Load background image
+      fabric.Image.fromURL(imageUrl, (img) => {
+        if (!img) {
+          setError('Failed to load image');
+          setIsLoading(false);
+          return;
+        }
+
+        // Scale image to fit canvas
+        const canvasWidth = 800;
+        const canvasHeight = 600;
+        const imageAspect = img.width! / img.height!;
+        const canvasAspect = canvasWidth / canvasHeight;
+
+        let scaleX, scaleY;
+        if (imageAspect > canvasAspect) {
+          // Image is wider than canvas
+          scaleX = canvasWidth / img.width!;
+          scaleY = scaleX;
+        } else {
+          // Image is taller than canvas
+          scaleY = canvasHeight / img.height!;
+          scaleX = scaleY;
+        }
+
+        img.set({
+          scaleX,
+          scaleY,
+          left: (canvasWidth - img.width! * scaleX) / 2,
+          top: (canvasHeight - img.height! * scaleY) / 2,
+          selectable: false,
+          evented: false
+        });
+
+        fabricCanvas.add(img);
+        fabricCanvas.sendToBack(img);
+        fabricCanvas.renderAll();
+
+        setIsLoading(false);
+        
+        // Notify parent that canvas is ready
+        onCanvasReady(canvasRef.current!);
+      }, { crossOrigin: 'anonymous' });
+
+      // Update text elements when canvas changes
+      const updateTextElements = () => {
+        const textObjects = fabricCanvas.getObjects('text') as fabric.Text[];
+        const textElements = textObjects.map(obj => obj.text || '').filter(text => text.trim());
+        onTextElementsChange(textElements);
+      };
+
+      fabricCanvas.on('object:added', updateTextElements);
+      fabricCanvas.on('object:removed', updateTextElements);
+      fabricCanvas.on('object:modified', updateTextElements);
+
+    } catch (err) {
+      setError('Failed to initialize canvas');
+      setIsLoading(false);
     }
-
-    // Handle selection changes for real-time sidebar sync
-    canvas.on('selection:created', (options: any) => {
-      const selectedObject = options.selected?.[0];
-      if (selectedObject && (selectedObject.type === 'text' || selectedObject.type === 'i-text')) {
-        const textObj = selectedObject as fabric.IText;
-        setTextSize(textObj.fontSize || 24);
-        setTextColor(textObj.fill as string || '#000000');
-      } else if (selectedObject && (selectedObject.type === 'rect' || selectedObject.type === 'circle')) {
-        setFillColor(selectedObject.fill as string || '#ff0000');
-        setBorderColor(selectedObject.stroke as string || '#000000');
-        setOpacity(selectedObject.opacity || 1);
-      }
-    });
-
-    canvas.on('selection:updated', (options: any) => {
-      const selectedObject = options.selected?.[0];
-      if (selectedObject && (selectedObject.type === 'text' || selectedObject.type === 'i-text')) {
-        const textObj = selectedObject as fabric.IText;
-        setTextSize(textObj.fontSize || 24);
-        setTextColor(textObj.fill as string || '#000000');
-      } else if (selectedObject && (selectedObject.type === 'rect' || selectedObject.type === 'circle')) {
-        setFillColor(selectedObject.fill as string || '#ff0000');
-        setBorderColor(selectedObject.stroke as string || '#000000');
-        setOpacity(selectedObject.opacity || 1);
-      }
-    });
-
-    // Handle text editing completion to update sidebar
-    canvas.on('text:editing:exited', (options: any) => {
-      const textObj = options.target as fabric.IText;
-      if (textObj) {
-        setTextSize(textObj.fontSize || 24);
-        setTextColor(textObj.fill as string || '#000000');
-        // Update text elements when editing ends
-        updateTextElements();
-      }
-    });
 
     // Cleanup
     return () => {
-      canvas.dispose();
-      fabricCanvasRef.current = null;
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.dispose();
+        fabricCanvasRef.current = null;
+      }
     };
-  }, []);
-
-  // Load image when imageUrl changes
-  useEffect(() => {
-    if (!fabricCanvasRef.current || !imageUrl) return;
-
-    const canvas = fabricCanvasRef.current;
-    
-    fabric.Image.fromURL(imageUrl, (img: any) => {
-      // Clear canvas
-      canvas.clear();
-      canvas.backgroundColor = '#f3f4f6';
-
-      // Scale image to fit canvas while maintaining aspect ratio
-      const canvasWidth = 800;
-      const canvasHeight = 600;
-      const imgWidth = img.width!;
-      const imgHeight = img.height!;
-
-      const scaleX = canvasWidth / imgWidth;
-      const scaleY = canvasHeight / imgHeight;
-      const scale = Math.min(scaleX, scaleY);
-
-      img.scale(scale);
-      img.set({
-        left: (canvasWidth - imgWidth * scale) / 2,
-        top: (canvasHeight - imgHeight * scale) / 2,
-        selectable: false,
-        evented: false,
-      });
-
-      canvas.add(img);
-      canvas.sendToBack(img);
-      canvas.renderAll();
-    }, {
-      crossOrigin: 'anonymous'
-    });
-  }, [imageUrl]);
+  }, [imageUrl, onTextElementsChange, onCanvasReady]);
 
   const addText = () => {
     if (!fabricCanvasRef.current) return;
 
-    // Use IText for editable text - double-click editing is built-in!
-    const text = new fabric.IText('Double click to edit', {
+    const text = new fabric.Text('Add your text here', {
       left: 100,
       top: 100,
-      fontSize: textSize,
-      fill: textColor,
+      fill: '#ffffff',
+      fontSize: 24,
       fontFamily: 'Arial',
-      lockUniScaling: true, // Prevent text stretching
-      editable: true, // Enable editing
-    });
-
-    // Handle text scaling by converting to font size changes
-    text.on('scaling', () => {
-      const newFontSize = Math.max(8, Math.min(300, Math.round(text.fontSize! * text.scaleX!)));
-      text.set({
-        fontSize: newFontSize,
-        scaleX: 1,
-        scaleY: 1,
-      });
-      
-      // Update sidebar to reflect new font size
-      setTextSize(newFontSize);
-      fabricCanvasRef.current?.renderAll();
+      stroke: '#000000',
+      strokeWidth: 1,
+      shadow: 'rgba(0,0,0,0.5) 2px 2px 5px'
     });
 
     fabricCanvasRef.current.add(text);
     fabricCanvasRef.current.setActiveObject(text);
     fabricCanvasRef.current.renderAll();
-    
-    // Update text elements when new text is added
-    updateTextElements();
   };
 
-  const addRectangle = () => {
+  const addShape = (type: 'rectangle' | 'circle') => {
     if (!fabricCanvasRef.current) return;
 
-    const rect = new fabric.Rect({
-      left: 100,
-      top: 100,
-      width: 150,
-      height: 100,
-      fill: fillColor,
-      stroke: borderColor,
-      strokeWidth: 2,
-      opacity: opacity,
-    });
+    let shape: fabric.Object;
 
-    fabricCanvasRef.current.add(rect);
-    fabricCanvasRef.current.setActiveObject(rect);
-    fabricCanvasRef.current.renderAll();
-  };
+    if (type === 'rectangle') {
+      shape = new fabric.Rect({
+        left: 150,
+        top: 150,
+        width: 100,
+        height: 60,
+        fill: 'rgba(147, 51, 234, 0.7)',
+        stroke: '#9333ea',
+        strokeWidth: 2
+      });
+    } else {
+      shape = new fabric.Circle({
+        left: 150,
+        top: 150,
+        radius: 50,
+        fill: 'rgba(147, 51, 234, 0.7)',
+        stroke: '#9333ea',
+        strokeWidth: 2
+      });
+    }
 
-  const addCircle = () => {
-    if (!fabricCanvasRef.current) return;
-
-    const circle = new fabric.Circle({
-      left: 100,
-      top: 100,
-      radius: 50,
-      fill: fillColor,
-      stroke: borderColor,
-      strokeWidth: 2,
-      opacity: opacity,
-    });
-
-    fabricCanvasRef.current.add(circle);
-    fabricCanvasRef.current.setActiveObject(circle);
+    fabricCanvasRef.current.add(shape);
+    fabricCanvasRef.current.setActiveObject(shape);
     fabricCanvasRef.current.renderAll();
   };
 
@@ -225,151 +159,119 @@ export default function ImageCanvas({ photo, imageUrl, onTextElementsChange, onC
     if (!fabricCanvasRef.current) return;
 
     const activeObject = fabricCanvasRef.current.getActiveObject();
-    if (activeObject && activeObject.type !== 'image') {
+    if (activeObject) {
       fabricCanvasRef.current.remove(activeObject);
       fabricCanvasRef.current.renderAll();
     }
   };
 
-  // Real-time text property updates
-  useEffect(() => {
+  const clearCanvas = () => {
     if (!fabricCanvasRef.current) return;
 
-    const activeObject = fabricCanvasRef.current.getActiveObject();
-    if (activeObject && (activeObject.type === 'text' || activeObject.type === 'i-text')) {
-      (activeObject as fabric.IText).set({
-        fontSize: textSize,
-        fill: textColor,
-      });
-      fabricCanvasRef.current.renderAll();
+    const objects = fabricCanvasRef.current.getObjects();
+    const imageObject = objects.find(obj => obj.type === 'image');
+    
+    fabricCanvasRef.current.clear();
+    
+    if (imageObject) {
+      fabricCanvasRef.current.add(imageObject);
+      fabricCanvasRef.current.sendToBack(imageObject);
     }
-  }, [textSize, textColor]);
+    
+    fabricCanvasRef.current.renderAll();
+  };
 
-  // Real-time shape property updates
-  useEffect(() => {
-    if (!fabricCanvasRef.current) return;
-
-    const activeObject = fabricCanvasRef.current.getActiveObject();
-    if (activeObject && (activeObject.type === 'rect' || activeObject.type === 'circle')) {
-      activeObject.set({
-        fill: fillColor,
-        stroke: borderColor,
-        opacity: opacity,
-      });
-      fabricCanvasRef.current.renderAll();
-    }
-  }, [fillColor, borderColor, opacity]);
+  if (error) {
+    return (
+      <div className="bg-red-950/60 border border-red-500/30 rounded-lg p-6">
+        <p className="text-red-200">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex gap-6">
-      {/* Toolbar */}
-      <div className="w-64 bg-slate-900/60 backdrop-blur-md rounded-xl shadow-2xl border border-purple-500/20 p-4 h-fit">
-        <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Tools</h3>
-        
-        {/* Tool Selection */}
-        <div className="space-y-2 mb-6">
+    <div className="space-y-6">
+      {/* Canvas Controls */}
+      <div className="bg-slate-900/60 backdrop-blur-md rounded-xl shadow-2xl border border-purple-500/20 p-6">
+        <div className="flex flex-wrap gap-3 mb-4">
           <button
             onClick={addText}
-            className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded hover:from-purple-700 hover:to-purple-800 transition-all duration-300 shadow-lg shadow-purple-500/25"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg font-medium transition-all duration-300"
           >
-            Add Text
+            📝 Add Text
           </button>
           <button
-            onClick={addRectangle}
-            className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 shadow-lg shadow-indigo-500/25"
+            onClick={() => addShape('rectangle')}
+            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all duration-300"
           >
-            Add Rectangle
+            ⬜ Rectangle
           </button>
           <button
-            onClick={addCircle}
-            className="w-full px-4 py-2 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded hover:from-violet-700 hover:to-violet-800 transition-all duration-300 shadow-lg shadow-violet-500/25"
+            onClick={() => addShape('circle')}
+            className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-lg font-medium transition-all duration-300"
           >
-            Add Circle
+            ⭕ Circle
           </button>
           <button
             onClick={deleteSelected}
-            className="w-full px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg shadow-red-500/25"
+            className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-medium transition-all duration-300"
           >
-            Delete Selected
+            🗑️ Delete
+          </button>
+          <button
+            onClick={clearCanvas}
+            className="px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-lg font-medium transition-all duration-300"
+          >
+            🧹 Clear All
           </button>
         </div>
 
-        {/* Text Controls */}
-        <div className="space-y-4 mb-6">
-          <h4 className="font-medium text-slate-200">Text Style <span className="text-xs text-emerald-400">●live</span></h4>
-          <div>
-            <label className="block text-sm font-medium mb-1 text-slate-300">Font Size</label>
-            <input
-              type="range"
-              min="12"
-              max="72"
-              value={textSize}
-              onChange={(e) => setTextSize(Number(e.target.value))}
-              className="w-full accent-purple-500"
-            />
-            <span className="text-sm text-slate-400">{textSize}px</span>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 text-slate-300">Text Color</label>
-            <input
-              type="color"
-              value={textColor}
-              onChange={(e) => setTextColor(e.target.value)}
-              className="w-full h-8 rounded border border-purple-500/30 bg-slate-800/80"
-            />
-          </div>
-          
-        </div>
-
-        {/* Shape Controls */}
-        <div className="space-y-4">
-          <h4 className="font-medium text-slate-200">Shape Style <span className="text-xs text-emerald-400">●live</span></h4>
-          <div>
-            <label className="block text-sm font-medium mb-1 text-slate-300">Fill Color</label>
-            <input
-              type="color"
-              value={fillColor}
-              onChange={(e) => setFillColor(e.target.value)}
-              className="w-full h-8 rounded border border-purple-500/30 bg-slate-800/80"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 text-slate-300">Border Color</label>
-            <input
-              type="color"
-              value={borderColor}
-              onChange={(e) => setBorderColor(e.target.value)}
-              className="w-full h-8 rounded border border-purple-500/30 bg-slate-800/80"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 text-slate-300">Opacity</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={opacity}
-              onChange={(e) => setOpacity(Number(e.target.value))}
-              className="w-full accent-purple-500"
-            />
-            <span className="text-sm text-slate-400">{Math.round(opacity * 100)}%</span>
-          </div>
-          
-        </div>
+        <p className="text-sm text-slate-300">
+          💡 <strong>Tip:</strong> Double-click text to edit, drag to move, use corners to resize
+        </p>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1">
-        <div className="bg-slate-900/60 backdrop-blur-md rounded-xl shadow-2xl border border-purple-500/20 p-4">
-          <canvas ref={canvasRef} className="border border-purple-500/30 rounded shadow-lg" />
-          {photo && (
-            <p className="text-sm text-slate-300 mt-2">
-              Photo by <a href={photo.photographer_url} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-pink-400 hover:underline transition-colors">{photo.photographer}</a> on Pexels
-            </p>
+      {/* Canvas Container */}
+      <div className="bg-slate-900/60 backdrop-blur-md rounded-xl shadow-2xl border border-purple-500/20 p-6">
+        <div className="relative">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-800/50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
+                <span className="text-slate-300">Loading image...</span>
+              </div>
+            </div>
           )}
+          
+          <canvas 
+            ref={canvasRef}
+            className="border border-purple-500/30 rounded-lg shadow-lg max-w-full"
+          />
+        </div>
+
+        <div className="mt-4 text-center">
+          <p className="text-sm text-slate-400">
+            Photo by{' '}
+            <a 
+              href={photo.photographer_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-purple-400 hover:text-pink-400 hover:underline"
+            >
+              {photo.photographer}
+            </a>
+            {' '}on{' '}
+            <a 
+              href="https://www.pexels.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-purple-400 hover:text-pink-400 hover:underline"
+            >
+              Pexels
+            </a>
+          </p>
         </div>
       </div>
     </div>
   );
-} 
+}
